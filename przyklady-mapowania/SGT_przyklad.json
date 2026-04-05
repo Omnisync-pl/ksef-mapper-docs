@@ -1,0 +1,104 @@
+{
+  "_comment": "Przykładowy szablon mapowania KSeF Mapper — Subiekt GT → FA(3) XML",
+  "_info": "Plik eksportowany z KSeF Mapper (omnisync.pl/ksef-mapper). Importuj go w aplikacji aby użyć gotowego schematu.",
+  "schemeId": "00000000-0000-0000-0000-000000000001",
+  "schemeName": "Przykład: Subiekt GT → KSeF FA(3)",
+  "version": "1.2.11",
+  "sourceSystem": "SubiektGT",
+  "targetSchema": "FA(3)",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "modifiedAt": "2026-01-01T00:00:00.000Z",
+  "mappings": [
+
+    {
+      "_comment": "--- TYP 1: STAŁA (const) --- Wpisujesz wartość ręcznie, nie pochodzi z ERP",
+      "id": "00000000-0000-0000-0000-000000000010",
+      "targetPath": "Faktura/Naglowek/KodFormularza",
+      "type": "const",
+      "description": "Stała wartość: FA — wymagana przez schemat FA(3)",
+      "constValue": "FA"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000011",
+      "targetPath": "Faktura/Naglowek/WariantFormularza",
+      "type": "const",
+      "description": "Stała wartość: 3 — numer wersji schematu KSeF",
+      "constValue": "3"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000012",
+      "targetPath": "Faktura/Podmiot1/Adres/KodKraju",
+      "type": "const",
+      "description": "Kod kraju sprzedawcy — stały dla polskich firm",
+      "constValue": "PL"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000013",
+      "targetPath": "Faktura/Naglowek/SystemInfo",
+      "type": "const",
+      "description": "Informacja o systemie wystawiającym fakturę",
+      "constValue": "OmniSync KSeF / Subiekt GT"
+    },
+
+    {
+      "_comment": "--- TYP 2: ZAPYTANIE SQL (sql) --- Pobiera dane z bazy Subiekt GT przez MS SQL",
+      "id": "00000000-0000-0000-0000-000000000020",
+      "targetPath": "Faktura/Naglowek/DataWytworzeniaFa",
+      "type": "sql",
+      "description": "Data wystawienia faktury w formacie ISO 8601 — wymagana przez KSeF",
+      "sqlQuery": "SELECT CONVERT(varchar(20), d.dok_DataWyst, 127) + 'Z' AS [Naglowek.DataWytworzeniaFa]\nFROM dok__Dokument d\nWHERE d.dok_Id = ${dok__dokument.dok_id}"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000021",
+      "targetPath": "Faktura/Podmiot1/DaneIdentyfikacyjne/NIP",
+      "type": "sql",
+      "description": "NIP sprzedawcy pobierany z tabeli adresów Subiekt GT",
+      "sqlQuery": "SELECT a.adr_NIP AS [Podmiot1.NIP]\nFROM dok__Dokument d\nCROSS JOIN adr__Ewid a\nWHERE d.dok_Id = ${dok__dokument.dok_id}\n  AND a.adr_Id = 1"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000022",
+      "targetPath": "Faktura/Podmiot1/DaneIdentyfikacyjne/Nazwa",
+      "type": "sql",
+      "description": "Pełna nazwa sprzedawcy z bazy Subiekt GT",
+      "sqlQuery": "SELECT a.adr_NazwaPelna AS [Podmiot1.Nazwa]\nFROM dok__Dokument d\nCROSS JOIN adr__Ewid a\nWHERE d.dok_Id = ${dok__dokument.dok_id}\n  AND a.adr_Id = 1"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000023",
+      "targetPath": "Faktura/Podmiot1/Adres/AdresL1",
+      "type": "sql",
+      "description": "Adres sprzedawcy złożony z pól ulicy, numeru domu i kodu pocztowego",
+      "sqlQuery": "SELECT RTRIM(\n    ISNULL(a.adr_Ulica, '') + ' '\n    + ISNULL(a.adr_NrDomu, '')\n    + CASE WHEN ISNULL(a.adr_NrLokalu, '') <> ''\n           THEN '/' + a.adr_NrLokalu ELSE '' END\n    + ', ' + ISNULL(a.adr_Kod, '')\n    + ' ' + ISNULL(a.adr_Miejscowosc, '')\n) AS [Podmiot1.Adres.AdresL1]\nFROM dok__Dokument d\nCROSS JOIN adr__Ewid a\nWHERE d.dok_Id = ${dok__dokument.dok_id}\n  AND a.adr_Id = 1"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000024",
+      "targetPath": "Faktura/Fa/KodWaluty",
+      "type": "sql",
+      "description": "Kod waluty faktury — jeśli brak to domyślnie PLN",
+      "sqlQuery": "SELECT CASE WHEN ISNULL(d.dok_Waluta, '') = ''\n            THEN 'PLN'\n            ELSE d.dok_Waluta\n       END AS [Fa.KodWaluty]\nFROM dok__Dokument d\nWHERE d.dok_Id = ${dok__dokument.dok_id}"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000025",
+      "targetPath": "Faktura/Podmiot2/DaneIdentyfikacyjne/NIP",
+      "type": "sql",
+      "description": "NIP nabywcy pobrany z kontrahenta przypisanego do dokumentu",
+      "sqlQuery": "SELECT k.kh_NIP AS [Podmiot2.NIP]\nFROM dok__Dokument d\nJOIN kh__Kontrahent k ON k.kh_Id = d.dok_IdKontrahent\nWHERE d.dok_Id = ${dok__dokument.dok_id}"
+    },
+
+    {
+      "_comment": "--- TYP 3: BEZPOŚREDNIE (direct) --- Mapuje pole z ERP 1:1 bez transformacji",
+      "id": "00000000-0000-0000-0000-000000000030",
+      "targetPath": "Faktura/Podmiot1/NrEORI",
+      "type": "direct",
+      "description": "Numer EORI sprzedawcy — bezpośrednio z pola bazy danych",
+      "sourceField": "adr_NrEORI"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000031",
+      "targetPath": "Faktura/Fa/FaWiersz/UU_ID",
+      "type": "direct",
+      "description": "Unikalny identyfikator pozycji faktury w KSeF",
+      "sourceField": "ob_KsefUUID"
+    }
+
+  ]
+}
